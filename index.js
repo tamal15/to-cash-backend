@@ -71,6 +71,12 @@ async function run() {
       const clientcategoryqatarCollection = database.collection('postcategoryQatar');
       const clientcategoryKuwaitsCollection = database.collection('postcategorykuwaits');
       const userCollection = database.collection('users');
+      const homesclientsCollection = database.collection('homeClients');
+      const homesCategoryclientCollection = database.collection('categoryhomeClients');
+      const postrecruitmentCollection = database.collection('postRecruitment');
+      const postcareerdataCollection = database.collection('postcareerdata');
+      const homecontactpostCollection = database.collection('homecontactpost');
+      const awardbannersCollection = database.collection('AwardBanners');
 
 
 
@@ -83,6 +89,68 @@ async function run() {
   res.json(result);
  
 })
+ app.post('/postdatarecruitment', async(req,res)=>{
+  const user=req.body;
+  console.log(req.body)
+  const result=await postrecruitmentCollection.insertOne(user);
+  res.json(result);
+ 
+})
+
+app.post("/homecontactpost", async (req, res) => {
+  try {
+    const contactData = req.body;
+    console.log(contactData);
+
+    // Save to database (assuming MongoDB)
+    const result = await homecontactpostCollection.insertOne(contactData);
+
+    res.status(200).json({ message: "Contact data submitted successfully", result });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: "Failed to submit contact data" });
+  }
+});
+
+ 
+app.post("/postscareersdatas", async (req, res) => {
+  try {
+    const user = req.body; // Data received from frontend
+    console.log("Received data:", user);
+
+    if (!user.name || !user.email || !user.mobile || !user.link) {
+      return res.status(400).json({ message: "All fields are required" });
+    }
+
+    const result = await postcareerdataCollection.insertOne(user);
+    res.status(200).json({ message: "Data saved successfully", data: result });
+  } catch (error) {
+    console.error("Error saving data:", error);
+    res.status(500).json({ message: "Internal server error" });
+  }
+});
+
+
+
+
+
+
+
+
+
+
+
+  // database searching check admin 
+  app.get('/userLogin/:email', async(req,res)=>{
+    const email=req.params.email;
+    const query={email:email}
+    const user=await userCollection.findOne(query)
+    let isAdmin=false;
+    if(user?.role==='admin'){
+      isAdmin=true;
+    }
+    res.json({admin:isAdmin})
+});
 
 
 // post pproject home 
@@ -619,6 +687,42 @@ app.post('/postclientqatars', async (req, res) => {
   }
 });
 
+
+// post home client category 
+
+app.post('/posthomesclintsdata', async (req, res) => {
+  try {
+    const { category, image } = req.body;
+    console.log(req.body)
+    const result = await homesCategoryclientCollection.insertOne({
+      category,
+      image,
+    
+      createdAt: new Date(),
+    });
+
+    // Check if insert was successful and return the inserted data
+    if (result.acknowledged) {
+      res.status(201).json({
+        message: 'Banner added successfully',
+        data: {
+          _id: result.insertedId,
+          category,
+          image,
+         
+          
+          createdAt: new Date(),
+        },
+      });
+    } else {
+      res.status(500).json({ message: 'Error adding banner' });
+    }
+  } catch (error) {
+    console.error('Error adding banner:', error);
+    res.status(500).json({ message: 'Error adding banner' });
+  }
+});
+
 // category kuwaits 
 
 app.post('/postscategoryskuwaits', async (req, res) => {
@@ -917,6 +1021,30 @@ app.post('/postrecruitmentprocess', async (req, res) => {
         const result = await clientcategoryKuwaitsCollection.find({}).toArray();
         res.json(result);
       });
+      app.get("/gethomesclients", async (req, res) => {
+        const result = await homesclientsCollection.find({}).toArray();
+        res.json(result);
+      });
+      app.get("/getcategoryhomesclients", async (req, res) => {
+        const result = await homesCategoryclientCollection.find({}).toArray();
+        res.json(result);
+      });
+      app.get("/getrecruitmentform", async (req, res) => {
+        const result = await postrecruitmentCollection.find({}).toArray();
+        res.json(result);
+      });
+      app.get("/getcareerdata", async (req, res) => {
+        const result = await postcareerdataCollection.find({}).toArray();
+        res.json(result);
+      });
+      app.get("/getcontacthomesdata", async (req, res) => {
+        const result = await homecontactpostCollection.find({}).toArray();
+        res.json(result);
+      });
+      app.get("/getawardbannerss", async (req, res) => {
+        const result = await awardbannersCollection.find({}).toArray();
+        res.json(result);
+      });
       app.get("/getawardsclients", async (req, res) => {
         try {
           const awards = await awardclientsCollection.find({}).toArray();
@@ -1172,6 +1300,25 @@ app.post('/postrecruitmentprocess', async (req, res) => {
         const user = await clientcategoryKuwaitsCollection.findOne(query);
         res.json(user);
       });
+      app.get("/editshomescleints/:id", async (req, res) => {
+        const id = req.params.id;
+        const query = { _id: new ObjectId(id) };
+        const user = await homesclientsCollection.findOne(query);
+        res.json(user);
+      });
+  
+      app.get("/editshomescategoryclients/:id", async (req, res) => {
+        const id = req.params.id;
+        const query = { _id: new ObjectId(id) };
+        const user = await homesCategoryclientCollection.findOne(query);
+        res.json(user);
+      });
+      app.get("/editsawardbanners/:id", async (req, res) => {
+        const id = req.params.id;
+        const query = { _id: new ObjectId(id) };
+        const user = await awardbannersCollection.findOne(query);
+        res.json(user);
+      });
   
 
 
@@ -1187,6 +1334,18 @@ app.post('/postrecruitmentprocess', async (req, res) => {
       );
    res.json(updateResult);
   }); 
+
+  app.put("/awardaboutsbannersupdate/:id", async (req, res) => {
+      
+    const { id } = req.params;
+    const { title, media } = req.body;
+
+    const updateResult = await awardbannersCollection.updateOne(
+      { _id: new ObjectId(id) },
+      { $set: { title, media } }
+    );
+ res.json(updateResult);
+}); 
 
 
     app.put("/homeaboutsupdate/:id", async (req, res) => {
@@ -1806,6 +1965,35 @@ app.post('/postrecruitmentprocess', async (req, res) => {
     }
   });
 
+  app.put('/homecategoryclientsupdates/:id', async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { category, image } = req.body;
+      
+  
+      const objectId = new ObjectId(id);
+        const result = await homesCategoryclientCollection.updateOne(
+        { _id: objectId }, 
+        {
+          $set: {
+            category,
+            image,
+            
+          },
+        }
+      );
+  
+      if (result.modifiedCount > 0) {
+        res.json({ message: 'Banner updated successfully', modifiedCount: result.modifiedCount });
+      } else {
+        res.status(404).json({ message: 'Banner not found or no changes made' });
+      }
+    } catch (error) {
+      console.error('Error updating banner:', error);
+      res.status(500).json({ message: 'Server Error' });
+    }
+  });
+
 
   // kuwaits 
 
@@ -1909,6 +2097,38 @@ app.post('/postrecruitmentprocess', async (req, res) => {
   
       const objectId = new ObjectId(id);
         const result = await clientqatarCollection.updateOne(
+        { _id: objectId }, 
+        {
+          $set: {
+            key,
+            label,
+            
+          },
+        }
+      );
+  
+      if (result.modifiedCount > 0) {
+        res.json({ message: 'Banner updated successfully', modifiedCount: result.modifiedCount });
+      } else {
+        res.status(404).json({ message: 'Banner not found or no changes made' });
+      }
+    } catch (error) {
+      console.error('Error updating banner:', error);
+      res.status(500).json({ message: 'Server Error' });
+    }
+  });
+
+
+  // home clients 
+
+  app.put('/clientshomessdates/:id', async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { key, label } = req.body;
+      
+  
+      const objectId = new ObjectId(id);
+        const result = await homesclientsCollection.updateOne(
         { _id: objectId }, 
         {
           $set: {
@@ -2350,6 +2570,24 @@ app.put('/aboutwhyusupdate/:id', async (req, res) => {
   });
   app.delete("/clientscategoryskuwaitsdelete/:id", async (req, res) => {
     const result = await clientcategoryKuwaitsCollection.deleteOne({
+      _id: new ObjectId(req.params.id),
+    });
+    res.json(result);
+  });
+  app.delete("/clientscategoryshomesdelete/:id", async (req, res) => {
+    const result = await homesCategoryclientCollection.deleteOne({
+      _id: new ObjectId(req.params.id),
+    });
+    res.json(result);
+  });
+  app.delete("/postdatarecruitmentdelete/:id", async (req, res) => {
+    const result = await postrecruitmentCollection.deleteOne({
+      _id: new ObjectId(req.params.id),
+    });
+    res.json(result);
+  });
+  app.delete("/postdatacareersdelete/:id", async (req, res) => {
+    const result = await postcareerdataCollection.deleteOne({
       _id: new ObjectId(req.params.id),
     });
     res.json(result);

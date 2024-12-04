@@ -57,6 +57,32 @@ async function run() {
       const testimonialbannersCollection = database.collection('testimonialbanner');
       const testimonialgroupCollection = database.collection('testimonialgroup');
       const testimonialclientCollection = database.collection('testimonialclient');
+      const aboutwhyusCollection = database.collection('aboutwhyus');
+      const aboutboardmember = database.collection('aboutboardmember');
+      const aboutTeamMemberCollection = database.collection('aboutTeamMember');
+      const awardcardCollection = database.collection('awardcard');
+      const awardclientsCollection = database.collection('awardclients');
+      const awardstatusCollection = database.collection('AwardStatus');
+      const clientetecategoriesCollection = database.collection('clientetecategories');
+      const clientetedatasCollection = database.collection('clientetedata');
+      const clientuaeCollection = database.collection('clienteteUAE');
+      const clientcategoryuaeCollection = database.collection('postcategoryUAE');
+      const clientqatarCollection = database.collection('clienteteQatar');
+      const clientcategoryqatarCollection = database.collection('postcategoryQatar');
+      const clientcategoryKuwaitsCollection = database.collection('postcategorykuwaits');
+      const userCollection = database.collection('users');
+
+
+
+ // add database user collection 
+ app.post('/users', async(req,res)=>{
+  const user=req.body;
+  console.log(user)
+  const result=await userCollection.insertOne(user);
+  // console.log(body)
+  res.json(result);
+ 
+})
 
 
 // post pproject home 
@@ -115,6 +141,178 @@ app.post('/postclienttestimonial', async (req, res) => {
           title,
           description,
           image,
+          createdAt: new Date(),
+        },
+      });
+    } else {
+      res.status(500).json({ message: 'Error adding banner' });
+    }
+  } catch (error) {
+    console.error('Error adding banner:', error);
+    res.status(500).json({ message: 'Error adding banner' });
+  }
+});
+
+app.post('/postboardmember', async (req, res) => {
+  try {
+    const { title, name, image } = req.body;
+
+    // Insert the data into the MongoDB collection
+    const result = await aboutboardmember.insertOne({
+      title,
+      name,
+      image,
+      createdAt: new Date(),
+    });
+
+    // Check if insert was successful and return the inserted data
+    if (result.acknowledged) {
+      res.status(201).json({
+        message: 'Banner added successfully',
+        data: {
+          _id: result.insertedId,
+          title,
+          name,
+          image,
+          createdAt: new Date(),
+        },
+      });
+    } else {
+      res.status(500).json({ message: 'Error adding banner' });
+    }
+  } catch (error) {
+    console.error('Error adding banner:', error);
+    res.status(500).json({ message: 'Error adding banner' });
+  }
+});
+
+app.post('/postteammember', async (req, res) => {
+  try {
+    const { title, name, image } = req.body;
+
+    // Insert the data into the MongoDB collection
+    const result = await aboutTeamMemberCollection.insertOne({
+      title,
+      name,
+      image,
+      createdAt: new Date(),
+    });
+
+    // Check if insert was successful and return the inserted data
+    if (result.acknowledged) {
+      res.status(201).json({
+        message: 'Banner added successfully',
+        data: {
+          _id: result.insertedId,
+          title,
+          name,
+          image,
+          createdAt: new Date(),
+        },
+      });
+    } else {
+      res.status(500).json({ message: 'Error adding banner' });
+    }
+  } catch (error) {
+    console.error('Error adding banner:', error);
+    res.status(500).json({ message: 'Error adding banner' });
+  }
+});
+
+
+// award recognitaion 
+app.post('/postawrdcard', async (req, res) => {
+  try {
+    const { title, alignText, image } = req.body;
+
+    // Insert the data into the MongoDB collection
+    const result = await awardcardCollection.insertOne({
+      title,
+      alignText,
+      image,
+      createdAt: new Date(),
+    });
+
+    // Check if insert was successful and return the inserted data
+    if (result.acknowledged) {
+      res.status(201).json({
+        message: 'Banner added successfully',
+        data: {
+          _id: result.insertedId,
+          title,
+          alignText,
+          image,
+          createdAt: new Date(),
+        },
+      });
+    } else {
+      res.status(500).json({ message: 'Error adding banner' });
+    }
+  } catch (error) {
+    console.error('Error adding banner:', error);
+    res.status(500).json({ message: 'Error adding banner' });
+  }
+});
+
+
+// award client 
+app.post('/postawardclient', async (req, res) => {
+  try {
+    const { region, awards } = req.body;
+
+    // Validate input
+    if (!region || !Array.isArray(awards) || awards.length === 0) {
+      return res.status(400).json({ message: 'Invalid input data' });
+    }
+
+    // Insert the award data into the database
+    const result = await awardclientsCollection.insertOne({
+      region,
+      awards,
+      createdAt: new Date(),
+    });
+
+    // Response to the client
+    if (result.acknowledged) {
+      res.status(201).json({
+        message: 'Award data added successfully',
+        data: {
+          _id: result.insertedId,
+          region,
+          awards,
+          createdAt: new Date(),
+        },
+      });
+    } else {
+      res.status(500).json({ message: 'Failed to add award data' });
+    }
+  } catch (error) {
+    console.error('Error adding award data:', error);
+    res.status(500).json({ message: 'Internal Server Error' });
+  }
+});
+
+
+app.post('/postaboutwhyus', async (req, res) => {
+  try {
+    const { title, description } = req.body;
+
+    // Insert the data into the MongoDB collection
+    const result = await aboutwhyusCollection.insertOne({
+      title,
+      description,
+      createdAt: new Date(),
+    });
+
+    // Check if insert was successful and return the inserted data
+    if (result.acknowledged) {
+      res.status(201).json({
+        message: 'Banner added successfully',
+        data: {
+          _id: result.insertedId,
+          title,
+          description,
+         
           createdAt: new Date(),
         },
       });
@@ -348,6 +546,155 @@ app.post('/postblogpart', async (req, res) => {
 });
 
 
+app.post('/postclientetedatas', async (req, res) => {
+  try {
+    const { category, image } = req.body;
+    console.log(req.body)
+
+    // Insert the data into the MongoDB collection
+    const result = await clientetedatasCollection.insertOne({
+      category,
+      image,
+    
+      createdAt: new Date(),
+    });
+
+    // Check if insert was successful and return the inserted data
+    if (result.acknowledged) {
+      res.status(201).json({
+        message: 'Banner added successfully',
+        data: {
+          _id: result.insertedId,
+          category,
+          image,
+         
+          
+          createdAt: new Date(),
+        },
+      });
+    } else {
+      res.status(500).json({ message: 'Error adding banner' });
+    }
+  } catch (error) {
+    console.error('Error adding banner:', error);
+    res.status(500).json({ message: 'Error adding banner' });
+  }
+});
+
+
+// category qatar post 
+
+app.post('/postclientqatars', async (req, res) => {
+  try {
+    const { category, image } = req.body;
+    console.log(req.body)
+
+    // Insert the data into the MongoDB collection
+    const result = await clientcategoryqatarCollection.insertOne({
+      category,
+      image,
+    
+      createdAt: new Date(),
+    });
+
+    // Check if insert was successful and return the inserted data
+    if (result.acknowledged) {
+      res.status(201).json({
+        message: 'Banner added successfully',
+        data: {
+          _id: result.insertedId,
+          category,
+          image,
+         
+          
+          createdAt: new Date(),
+        },
+      });
+    } else {
+      res.status(500).json({ message: 'Error adding banner' });
+    }
+  } catch (error) {
+    console.error('Error adding banner:', error);
+    res.status(500).json({ message: 'Error adding banner' });
+  }
+});
+
+// category kuwaits 
+
+app.post('/postscategoryskuwaits', async (req, res) => {
+  try {
+    const { category, image } = req.body;
+    console.log(req.body)
+
+    // Insert the data into the MongoDB collection
+    const result = await clientcategoryKuwaitsCollection.insertOne({
+      category,
+      image,
+    
+      createdAt: new Date(),
+    });
+
+    // Check if insert was successful and return the inserted data
+    if (result.acknowledged) {
+      res.status(201).json({
+        message: 'Banner added successfully',
+        data: {
+          _id: result.insertedId,
+          category,
+          image,
+         
+          
+          createdAt: new Date(),
+        },
+      });
+    } else {
+      res.status(500).json({ message: 'Error adding banner' });
+    }
+  } catch (error) {
+    console.error('Error adding banner:', error);
+    res.status(500).json({ message: 'Error adding banner' });
+  }
+});
+
+
+// category use post 
+
+app.post('/postclientcategoryUAE', async (req, res) => {
+  try {
+    const { category, image } = req.body;
+    console.log(req.body)
+
+    // Insert the data into the MongoDB collection
+    const result = await clientcategoryuaeCollection.insertOne({
+      category,
+      image,
+    
+      createdAt: new Date(),
+    });
+
+    // Check if insert was successful and return the inserted data
+    if (result.acknowledged) {
+      res.status(201).json({
+        message: 'Banner added successfully',
+        data: {
+          _id: result.insertedId,
+          category,
+          image,
+         
+          
+          createdAt: new Date(),
+        },
+      });
+    } else {
+      res.status(500).json({ message: 'Error adding banner' });
+    }
+  } catch (error) {
+    console.error('Error adding banner:', error);
+    res.status(500).json({ message: 'Error adding banner' });
+  }
+});
+
+
 app.post('/postaward', async (req, res) => {
   try {
     const { title,  image } = req.body;
@@ -522,6 +869,62 @@ app.post('/postrecruitmentprocess', async (req, res) => {
         const result = await testimonialclientCollection.find({}).toArray();
         res.json(result);
       });
+      app.get("/getaboutwhyus", async (req, res) => {
+        const result = await aboutwhyusCollection.find({}).toArray();
+        res.json(result);
+      });
+      app.get("/getaboutboardmember", async (req, res) => {
+        const result = await aboutboardmember.find({}).toArray();
+        res.json(result);
+      });
+      app.get("/getaboutteam", async (req, res) => {
+        const result = await aboutTeamMemberCollection.find({}).toArray();
+        res.json(result);
+      });
+      app.get("/getawardcard", async (req, res) => {
+        const result = await awardcardCollection.find({}).toArray();
+        res.json(result);
+      });
+      app.get("/getawardstatus", async (req, res) => {
+        const result = await awardstatusCollection.find({}).toArray();
+        res.json(result);
+      });
+      app.get("/getclientcategories", async (req, res) => {
+        const result = await clientetecategoriesCollection.find({}).toArray();
+        res.json(result);
+      });
+      app.get("/getclientetedatas", async (req, res) => {
+        const result = await clientetedatasCollection.find({}).toArray();
+        res.json(result);
+      });
+      app.get("/getclientUSE", async (req, res) => {
+        const result = await clientuaeCollection.find({}).toArray();
+        res.json(result);
+      });
+      app.get("/getcategoryUSE", async (req, res) => {
+        const result = await clientcategoryuaeCollection.find({}).toArray();
+        res.json(result);
+      });
+      app.get("/getclientdataqatar", async (req, res) => {
+        const result = await clientqatarCollection.find({}).toArray();
+        res.json(result);
+      });
+      app.get("/getcategorysdataqatar", async (req, res) => {
+        const result = await clientcategoryqatarCollection.find({}).toArray();
+        res.json(result);
+      });
+      app.get("/getcategorysdataskuwaits", async (req, res) => {
+        const result = await clientcategoryKuwaitsCollection.find({}).toArray();
+        res.json(result);
+      });
+      app.get("/getawardsclients", async (req, res) => {
+        try {
+          const awards = await awardclientsCollection.find({}).toArray();
+          res.status(200).json(awards);
+        } catch (error) {
+          res.status(500).json({ message: "Error fetching awards", error });
+        }
+      });
       
 
 
@@ -691,6 +1094,84 @@ app.post('/postrecruitmentprocess', async (req, res) => {
         const user = await testimonialclientCollection.findOne(query);
         res.json(user);
       });
+      app.get("/editaboutwhyus/:id", async (req, res) => {
+        const id = req.params.id;
+        const query = { _id: new ObjectId(id) };
+        const user = await aboutwhyusCollection.findOne(query);
+        res.json(user);
+      });
+      app.get("/editaboutboard/:id", async (req, res) => {
+        const id = req.params.id;
+        const query = { _id: new ObjectId(id) };
+        const user = await aboutboardmember.findOne(query);
+        res.json(user);
+      });
+      app.get("/editaboutteam/:id", async (req, res) => {
+        const id = req.params.id;
+        const query = { _id: new ObjectId(id) };
+        const user = await aboutTeamMemberCollection.findOne(query);
+        res.json(user);
+      });
+      app.get("/editawrdcard/:id", async (req, res) => {
+        const id = req.params.id;
+        const query = { _id: new ObjectId(id) };
+        const user = await awardcardCollection.findOne(query);
+        res.json(user);
+      });
+      app.get("/editawrdsclients/:id", async (req, res) => {
+        const id = req.params.id;
+        const query = { _id: new ObjectId(id) };
+        const user = await awardclientsCollection.findOne(query);
+        res.json(user);
+      });
+      app.get("/editawrdsstatus/:id", async (req, res) => {
+        const id = req.params.id;
+        const query = { _id: new ObjectId(id) };
+        const user = await awardstatusCollection.findOne(query);
+        res.json(user);
+      });
+      app.get("/editsclientksa/:id", async (req, res) => {
+        const id = req.params.id;
+        const query = { _id: new ObjectId(id) };
+        const user = await clientetecategoriesCollection.findOne(query);
+        res.json(user);
+      });
+      app.get("/editclienteteabout/:id", async (req, res) => {
+        const id = req.params.id;
+        const query = { _id: new ObjectId(id) };
+        const user = await clientetedatasCollection.findOne(query);
+        res.json(user);
+      });
+      app.get("/editclienteteaboutuae/:id", async (req, res) => {
+        const id = req.params.id;
+        const query = { _id: new ObjectId(id) };
+        const user = await clientuaeCollection.findOne(query);
+        res.json(user);
+      });
+      app.get("/editclienteteaboutsqatar/:id", async (req, res) => {
+        const id = req.params.id;
+        const query = { _id: new ObjectId(id) };
+        const user = await clientqatarCollection.findOne(query);
+        res.json(user);
+      });
+      app.get("/editscategorysuae/:id", async (req, res) => {
+        const id = req.params.id;
+        const query = { _id: new ObjectId(id) };
+        const user = await clientcategoryuaeCollection.findOne(query);
+        res.json(user);
+      });
+      app.get("/editscategorysqatars/:id", async (req, res) => {
+        const id = req.params.id;
+        const query = { _id: new ObjectId(id) };
+        const user = await clientcategoryqatarCollection.findOne(query);
+        res.json(user);
+      });
+      app.get("/editscategorysquwaitss/:id", async (req, res) => {
+        const id = req.params.id;
+        const query = { _id: new ObjectId(id) };
+        const user = await clientcategoryKuwaitsCollection.findOne(query);
+        res.json(user);
+      });
   
 
 
@@ -722,6 +1203,18 @@ app.post('/postrecruitmentprocess', async (req, res) => {
    res.json(updateResult);
   }); 
 
+
+  app.put("/statusawrdupdate/:id", async (req, res) => {
+      
+    const { id } = req.params;
+    const { title1,number1,title2,number2,title3,number3 } = req.body;
+
+    const updateResult = await awardstatusCollection.updateOne(
+      { _id: new ObjectId(id) },
+      { $set: { title1,number1,title2,number2,title3,number3 } }
+    );
+ res.json(updateResult);
+}); 
 
   // service home 
   app.put('/serviceshomeupdate/:id', async (req, res) => {
@@ -1221,6 +1714,223 @@ app.post('/postrecruitmentprocess', async (req, res) => {
     }
   });
 
+  // clientete abouts 
+
+  app.put('/clienteteaboutupdate/:id', async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { category, image } = req.body;
+      
+  
+      const objectId = new ObjectId(id);
+        const result = await clientetedatasCollection.updateOne(
+        { _id: objectId }, 
+        {
+          $set: {
+            category,
+            image,
+            
+          },
+        }
+      );
+  
+      if (result.modifiedCount > 0) {
+        res.json({ message: 'Banner updated successfully', modifiedCount: result.modifiedCount });
+      } else {
+        res.status(404).json({ message: 'Banner not found or no changes made' });
+      }
+    } catch (error) {
+      console.error('Error updating banner:', error);
+      res.status(500).json({ message: 'Server Error' });
+    }
+  });
+
+  // clint uae 
+
+  app.put('/clientcategorysuaeupdate/:id', async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { category, image } = req.body;
+      
+  
+      const objectId = new ObjectId(id);
+        const result = await clientcategoryuaeCollection.updateOne(
+        { _id: objectId }, 
+        {
+          $set: {
+            category,
+            image,
+            
+          },
+        }
+      );
+  
+      if (result.modifiedCount > 0) {
+        res.json({ message: 'Banner updated successfully', modifiedCount: result.modifiedCount });
+      } else {
+        res.status(404).json({ message: 'Banner not found or no changes made' });
+      }
+    } catch (error) {
+      console.error('Error updating banner:', error);
+      res.status(500).json({ message: 'Server Error' });
+    }
+  });
+
+  // clinet qatar 
+  app.put('/clientcategorysqatarsupdates/:id', async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { category, image } = req.body;
+      
+  
+      const objectId = new ObjectId(id);
+        const result = await clientcategoryqatarCollection.updateOne(
+        { _id: objectId }, 
+        {
+          $set: {
+            category,
+            image,
+            
+          },
+        }
+      );
+  
+      if (result.modifiedCount > 0) {
+        res.json({ message: 'Banner updated successfully', modifiedCount: result.modifiedCount });
+      } else {
+        res.status(404).json({ message: 'Banner not found or no changes made' });
+      }
+    } catch (error) {
+      console.error('Error updating banner:', error);
+      res.status(500).json({ message: 'Server Error' });
+    }
+  });
+
+
+  // kuwaits 
+
+  app.put('/clientcategoryskuwaitsupdates/:id', async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { category, image } = req.body;
+      
+  
+      const objectId = new ObjectId(id);
+        const result = await clientcategoryKuwaitsCollection.updateOne(
+        { _id: objectId }, 
+        {
+          $set: {
+            category,
+            image,
+            
+          },
+        }
+      );
+  
+      if (result.modifiedCount > 0) {
+        res.json({ message: 'Banner updated successfully', modifiedCount: result.modifiedCount });
+      } else {
+        res.status(404).json({ message: 'Banner not found or no changes made' });
+      }
+    } catch (error) {
+      console.error('Error updating banner:', error);
+      res.status(500).json({ message: 'Server Error' });
+    }
+  });
+
+
+
+  app.put('/clientaksaupdates/:id', async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { key, label } = req.body;
+      
+  
+      const objectId = new ObjectId(id);
+        const result = await clientetecategoriesCollection.updateOne(
+        { _id: objectId }, 
+        {
+          $set: {
+            key,
+            label,
+            
+          },
+        }
+      );
+  
+      if (result.modifiedCount > 0) {
+        res.json({ message: 'Banner updated successfully', modifiedCount: result.modifiedCount });
+      } else {
+        res.status(404).json({ message: 'Banner not found or no changes made' });
+      }
+    } catch (error) {
+      console.error('Error updating banner:', error);
+      res.status(500).json({ message: 'Server Error' });
+    }
+  });
+
+
+  // uae clint 
+
+  app.put('/clientauaepdates/:id', async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { key, label } = req.body;
+      
+  
+      const objectId = new ObjectId(id);
+        const result = await clientuaeCollection.updateOne(
+        { _id: objectId }, 
+        {
+          $set: {
+            key,
+            label,
+            
+          },
+        }
+      );
+  
+      if (result.modifiedCount > 0) {
+        res.json({ message: 'Banner updated successfully', modifiedCount: result.modifiedCount });
+      } else {
+        res.status(404).json({ message: 'Banner not found or no changes made' });
+      }
+    } catch (error) {
+      console.error('Error updating banner:', error);
+      res.status(500).json({ message: 'Server Error' });
+    }
+  });
+
+  app.put('/clientsqatarsdates/:id', async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { key, label } = req.body;
+      
+  
+      const objectId = new ObjectId(id);
+        const result = await clientqatarCollection.updateOne(
+        { _id: objectId }, 
+        {
+          $set: {
+            key,
+            label,
+            
+          },
+        }
+      );
+  
+      if (result.modifiedCount > 0) {
+        res.json({ message: 'Banner updated successfully', modifiedCount: result.modifiedCount });
+      } else {
+        res.status(404).json({ message: 'Banner not found or no changes made' });
+      }
+    } catch (error) {
+      console.error('Error updating banner:', error);
+      res.status(500).json({ message: 'Server Error' });
+    }
+  });
+
+
   // event we care 
   app.put('/eventwecareupdate/:id', async (req, res) => {
     try {
@@ -1368,6 +2078,157 @@ app.put('/testimonialclientupdate/:id', async (req, res) => {
   }
 });
 
+app.put('/aboutboardmemberupdate/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { title, name, image } = req.body;
+    
+
+    const objectId = new ObjectId(id);
+      const result = await aboutboardmember.updateOne(
+      { _id: objectId }, 
+      {
+        $set: {
+          title,
+          name,
+          image
+        },
+      }
+    );
+
+    if (result.modifiedCount > 0) {
+      res.json({ message: 'Banner updated successfully', modifiedCount: result.modifiedCount });
+    } else {
+      res.status(404).json({ message: 'Banner not found or no changes made' });
+    }
+  } catch (error) {
+    console.error('Error updating banner:', error);
+    res.status(500).json({ message: 'Server Error' });
+  }
+});
+
+app.put('/aboutteammembersupdate/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { title, name, image } = req.body;
+    
+
+    const objectId = new ObjectId(id);
+      const result = await aboutTeamMemberCollection.updateOne(
+      { _id: objectId }, 
+      {
+        $set: {
+          title,
+          name,
+          image
+        },
+      }
+    );
+
+    if (result.modifiedCount > 0) {
+      res.json({ message: 'Banner updated successfully', modifiedCount: result.modifiedCount });
+    } else {
+      res.status(404).json({ message: 'Banner not found or no changes made' });
+    }
+  } catch (error) {
+    console.error('Error updating banner:', error);
+    res.status(500).json({ message: 'Server Error' });
+  }
+});
+
+// awrd card 
+
+app.put('/awardcardupdate/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { title, alignText, image } = req.body;
+    
+
+    const objectId = new ObjectId(id);
+      const result = await awardcardCollection.updateOne(
+      { _id: objectId }, 
+      {
+        $set: {
+          title,
+          alignText,
+          image
+        },
+      }
+    );
+
+    if (result.modifiedCount > 0) {
+      res.json({ message: 'Banner updated successfully', modifiedCount: result.modifiedCount });
+    } else {
+      res.status(404).json({ message: 'Banner not found or no changes made' });
+    }
+  } catch (error) {
+    console.error('Error updating banner:', error);
+    res.status(500).json({ message: 'Server Error' });
+  }
+});
+
+
+// awad client 
+
+app.put('/awardsclientsupdate/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { region, awards } = req.body;
+
+    const objectId = new ObjectId(id);
+    const result = await awardclientsCollection.updateOne(
+      { _id: objectId },
+      {
+        $set: {
+          region,
+          awards,  // Update the entire awards array
+        },
+      }
+    );
+
+    if (result.modifiedCount > 0) {
+      res.json({ message: 'Award client updated successfully', modifiedCount: result.modifiedCount });
+    } else {
+      res.status(404).json({ message: 'Award client not found or no changes made' });
+    }
+  } catch (error) {
+    console.error('Error updating award client:', error);
+    res.status(500).json({ message: 'Server Error' });
+  }
+});
+
+
+
+// about why us 
+
+app.put('/aboutwhyusupdate/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { title, description } = req.body;
+    
+
+    const objectId = new ObjectId(id);
+      const result = await aboutwhyusCollection.updateOne(
+      { _id: objectId }, 
+      {
+        $set: {
+          title,
+          description,
+        },
+      }
+    );
+
+    if (result.modifiedCount > 0) {
+      res.json({ message: 'Banner updated successfully', modifiedCount: result.modifiedCount });
+    } else {
+      res.status(404).json({ message: 'Banner not found or no changes made' });
+    }
+  } catch (error) {
+    console.error('Error updating banner:', error);
+    res.status(500).json({ message: 'Server Error' });
+  }
+});
+
 
 
   app.delete("/bannersdelete/:id", async (req, res) => {
@@ -1445,6 +2306,68 @@ app.put('/testimonialclientupdate/:id', async (req, res) => {
     });
     res.json(result);
   });
+  app.delete("/abotwhyusdelete/:id", async (req, res) => {
+    const result = await aboutwhyusCollection.deleteOne({
+      _id: new ObjectId(req.params.id),
+    });
+    res.json(result);
+  });
+  app.delete("/aboutmemberdelete/:id", async (req, res) => {
+    const result = await aboutboardmember.deleteOne({
+      _id: new ObjectId(req.params.id),
+    });
+    res.json(result);
+  });
+  app.delete("/aboutteamdelete/:id", async (req, res) => {
+    const result = await aboutTeamMemberCollection.deleteOne({
+      _id: new ObjectId(req.params.id),
+    });
+    res.json(result);
+  });
+  app.delete("/awardcarddelete/:id", async (req, res) => {
+    const result = await awardcardCollection.deleteOne({
+      _id: new ObjectId(req.params.id),
+    });
+    res.json(result);
+  });
+  app.delete("/clientetedatasdelete/:id", async (req, res) => {
+    const result = await clientetedatasCollection.deleteOne({
+      _id: new ObjectId(req.params.id),
+    });
+    res.json(result);
+  });
+  app.delete("/clientcategoryuaedelete/:id", async (req, res) => {
+    const result = await clientcategoryuaeCollection.deleteOne({
+      _id: new ObjectId(req.params.id),
+    });
+    res.json(result);
+  });
+  app.delete("/clientscategorysqatardelete/:id", async (req, res) => {
+    const result = await clientcategoryqatarCollection.deleteOne({
+      _id: new ObjectId(req.params.id),
+    });
+    res.json(result);
+  });
+  app.delete("/clientscategoryskuwaitsdelete/:id", async (req, res) => {
+    const result = await clientcategoryKuwaitsCollection.deleteOne({
+      _id: new ObjectId(req.params.id),
+    });
+    res.json(result);
+  });
+
+  app.delete("/awardsclientsdelete/:id", async (req, res) => {
+    const { id } = req.params;
+    try {
+      const result = await awardclientsCollection.deleteOne({ _id: new ObjectId(id) });
+      if (result.deletedCount === 0) {
+        return res.status(404).json({ message: "Award not found" });
+      }
+      res.status(204).send();
+    } catch (error) {
+      res.status(500).json({ message: "Error deleting award", error });
+    }
+  });
+  
 
   }
 

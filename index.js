@@ -77,6 +77,10 @@ async function run() {
       const postcareerdataCollection = database.collection('postcareerdata');
       const homecontactpostCollection = database.collection('homecontactpost');
       const awardbannersCollection = database.collection('AwardBanners');
+      const clienteetbannerssCollection = database.collection('clientetebanners');
+      const aboutusbannersCollection = database.collection('aboutusbanners');
+      const aboutsusdetailsCollection = database.collection('aboutdetails');
+      const contactpartaddressCollection = database.collection('addresspartcontact');
 
 
 
@@ -1045,6 +1049,22 @@ app.post('/postrecruitmentprocess', async (req, res) => {
         const result = await awardbannersCollection.find({}).toArray();
         res.json(result);
       });
+      app.get("/getbannersclients", async (req, res) => {
+        const result = await clienteetbannerssCollection.find({}).toArray();
+        res.json(result);
+      });
+      app.get("/getbannersabouts", async (req, res) => {
+        const result = await aboutusbannersCollection.find({}).toArray();
+        res.json(result);
+      });
+      app.get("/getdetailssaboutpart", async (req, res) => {
+        const result = await aboutsusdetailsCollection.find({}).toArray();
+        res.json(result);
+      });
+      app.get("/getcontactaddresspart", async (req, res) => {
+        const result = await contactpartaddressCollection.find({}).toArray();
+        res.json(result);
+      });
       app.get("/getawardsclients", async (req, res) => {
         try {
           const awards = await awardclientsCollection.find({}).toArray();
@@ -1319,8 +1339,28 @@ app.post('/postrecruitmentprocess', async (req, res) => {
         const user = await awardbannersCollection.findOne(query);
         res.json(user);
       });
+      app.get("/editsclientetebanners/:id", async (req, res) => {
+        const id = req.params.id;
+        const query = { _id: new ObjectId(id) };
+        const user = await clienteetbannerssCollection.findOne(query);
+        res.json(user);
+      });
+      app.get("/editsbannersabouts/:id", async (req, res) => {
+        const id = req.params.id;
+        const query = { _id: new ObjectId(id) };
+        const user = await aboutusbannersCollection.findOne(query);
+        res.json(user);
+      });
+      app.get("/editsdetailsaboutus/:id", async (req, res) => {
+        const id = req.params.id;
+        const query = { _id: new ObjectId(id) };
+        const user = await aboutsusdetailsCollection.findOne(query);
+        res.json(user);
+      });
   
 
+
+      
 
     // update data
     app.put("/bannerupdate/:id", async (req, res) => {
@@ -2448,6 +2488,98 @@ app.put('/aboutwhyusupdate/:id', async (req, res) => {
     res.status(500).json({ message: 'Server Error' });
   }
 });
+
+
+app.put('/clientetesbannersupdate/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { title,  image } = req.body;
+    
+
+    const objectId = new ObjectId(id);
+      const result = await clienteetbannerssCollection.updateOne(
+      { _id: objectId }, 
+      {
+        $set: {
+          title,
+          image,
+        },
+      }
+    );
+
+    if (result.modifiedCount > 0) {
+      res.json({ message: 'Award updated successfully', modifiedCount: result.modifiedCount });
+    } else {
+      res.status(404).json({ message: 'Banner not found or no changes made' });
+    }
+  } catch (error) {
+    console.error('Error updating banner:', error);
+    res.status(500).json({ message: 'Server Error' });
+  }
+});
+app.put('/aboutusbannersupdate/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { title,  image } = req.body;
+    
+
+    const objectId = new ObjectId(id);
+      const result = await aboutusbannersCollection.updateOne(
+      { _id: objectId }, 
+      {
+        $set: {
+          title,
+          image,
+        },
+      }
+    );
+
+    if (result.modifiedCount > 0) {
+      res.json({ message: 'Award updated successfully', modifiedCount: result.modifiedCount });
+    } else {
+      res.status(404).json({ message: 'Banner not found or no changes made' });
+    }
+  } catch (error) {
+    console.error('Error updating banner:', error);
+    res.status(500).json({ message: 'Server Error' });
+  }
+});
+
+
+app.put('/aboutdetailsnewupdate/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { text,  highlightedText1,text2,highlightedText2,listTitle,list } = req.body;
+    
+
+    const objectId = new ObjectId(id);
+      const result = await aboutsusdetailsCollection.updateOne(
+      { _id: objectId }, 
+      {
+        $set: {
+          text,
+          highlightedText1,
+          text2,
+          highlightedText2,
+          listTitle,
+          list
+        },
+      }
+    );
+
+    if (result.modifiedCount > 0) {
+      res.json({ message: 'Award updated successfully', modifiedCount: result.modifiedCount });
+    } else {
+      res.status(404).json({ message: 'Banner not found or no changes made' });
+    }
+  } catch (error) {
+    console.error('Error updating banner:', error);
+    res.status(500).json({ message: 'Server Error' });
+  }
+});
+
+
+
 
 
 

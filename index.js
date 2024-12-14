@@ -1357,7 +1357,41 @@ app.post('/postrecruitmentprocess', async (req, res) => {
         const user = await aboutsusdetailsCollection.findOne(query);
         res.json(user);
       });
-  
+      
+
+      app.get("/getcitydetails/:countryId/:cityName", async (req, res) => {
+        const { countryId, cityName } = req.params;
+      
+        try {
+          // Ensure countryId is treated as an ObjectId
+          const country = await contactpartaddressCollection.findOne({ _id: new ObjectId(countryId) });
+      
+          if (!country) {
+            return res.status(404).send("Country not found");
+          }
+      
+          // Find city with case-insensitive match for cityName
+          const city = country.cities.find(
+            (c) => c.name.toLowerCase() === cityName.toLowerCase()
+          );
+      
+          if (!city) {
+            return res.status(404).send("City not found");
+          }
+      
+          // Include country flag in the response
+          res.json({
+            ...city,
+            countryFlag: country.flag, // Add the flag of the country to the response
+            country: country.country // Include the country name
+          });
+        } catch (error) {
+          console.error("Error fetching city details:", error);
+          res.status(500).send("Internal server error");
+        }
+      });
+      
+      
 
 
       
@@ -2577,6 +2611,39 @@ app.put('/aboutdetailsnewupdate/:id', async (req, res) => {
     res.status(500).json({ message: 'Server Error' });
   }
 });
+
+
+app.put("/updatecity/:countryId/:cityName", async (req, res) => {
+  const { countryId, cityName } = req.params;
+  const updatedCity = req.body;
+
+  try {
+    // Update the city details (name, email, phone, etc.)
+    const result = await contactpartaddressCollection.updateOne(
+      { _id: new ObjectId(countryId), "cities.name": cityName },
+      { 
+        $set: { 
+          "cities.$": updatedCity, // Update city details
+          "country": updatedCity.country || undefined, // Update country
+          "flag": updatedCity.flag || undefined // Update flag
+        }
+      });
+
+    if (result.matchedCount > 0) {
+      if (result.modifiedCount > 0) {
+        res.json({ message: "City, country, and flag updated successfully", result });
+      } else {
+        res.json({ message: "No changes detected, but the city exists", result });
+      }
+    } else {
+      res.status(404).json({ message: "City not found in the specified country" });
+    }
+  } catch (error) {
+    console.error("Error updating city:", error);
+    res.status(500).json({ message: "Internal server error", error });
+  }
+});
+
 
 
 

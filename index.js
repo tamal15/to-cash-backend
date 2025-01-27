@@ -42,10 +42,11 @@ async function run() {
       const chatsCollection = database.collection('chats');
       const searchCollection = database.collection('searchlist');
       const lovelistCollection = database.collection('productlike');
+      const bannerpostCollection = database.collection('bannerposts');
 
       
 
-    // Fetch chat history
+    // Fetch chat historyapi/form-submit
  // Fetch chat history
 
   app.get("/api/chats", async (req, res) => {
@@ -146,9 +147,96 @@ io.on("connection", (socket) => {
 });
 
 
+// baner post collection 
+
+app.post('/postaddbanner', async (req, res) => {
+  try {
+    const { title,  image } = req.body;
+
+    // Insert the data into the MongoDB collection
+    const result = await bannerpostCollection.insertOne({
+      title,
+      image,
+      createdAt: new Date(),
+    });
+
+    // Check if insert was successful and return the inserted data
+    if (result.acknowledged) {
+      res.status(201).json({
+        message: 'Award added successfully',
+        data: {
+          _id: result.insertedId,
+          title,
+          image,
+          createdAt: new Date(),
+        },
+      });
+    } else {
+      res.status(500).json({ message: 'Error adding banner' });
+    }
+  } catch (error) {
+    console.error('Error adding banner:', error);
+    res.status(500).json({ message: 'Error adding banner' });
+  }
+});
 
 
+app.get("/getbannerdata", async (req, res) => {
+  const result = await bannerpostCollection.find({}).toArray();
+  res.json(result);
+});
 
+app.get("/editbaners/:id", async (req, res) => {
+  const id = req.params.id;
+  const query = { _id: new ObjectId(id) };
+  const user = await bannerpostCollection.findOne(query);
+  res.json(user);
+});
+
+app.put('/bannerdataupdate/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { title,  image } = req.body;
+    
+
+    const objectId = new ObjectId(id);
+      const result = await bannerpostCollection.updateOne(
+      { _id: objectId }, 
+      {
+        $set: {
+          title,
+          image,
+        },
+      }
+    );
+
+    if (result.modifiedCount > 0) {
+      res.json({ message: 'Award updated successfully', modifiedCount: result.modifiedCount });
+    } else {
+      res.status(404).json({ message: 'Banner not found or no changes made' });
+    }
+  } catch (error) {
+    console.error('Error updating banner:', error);
+    res.status(500).json({ message: 'Server Error' });
+  }
+});
+
+
+app.delete("/bannerpartdelete/:id", async (req, res) => {
+  const result = await bannerpostCollection.deleteOne({
+    _id: new ObjectId(req.params.id),
+  });
+  res.json(result);
+});
+
+
+// pending data delete dashboard 
+app.delete("/pendingdatsdelete/:id", async (req, res) => {
+  const result = await cashcategoryCollection.deleteOne({
+    _id: new ObjectId(req.params.id),
+  });
+  res.json(result);
+});
 // chat list show 
 
 // Get Chat List
@@ -276,6 +364,18 @@ app.post("/send", async (req, res) => {
 app.get('/products', async (req, res) => {
   try {
     const pendingProducts = await cashcategoryCollection.find({ productStatus: 'pending' }).toArray();
+    res.status(200).json(pendingProducts);
+  } catch (error) {
+    res.status(500).json({ message: 'Failed to fetch products', error });
+  }
+});
+
+
+// all product show 
+
+app.get('/allshowsproducts', async (req, res) => {
+  try {
+    const pendingProducts = await cashcategoryCollection.find({  }).toArray();
     res.status(200).json(pendingProducts);
   } catch (error) {
     res.status(500).json({ message: 'Failed to fetch products', error });

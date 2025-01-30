@@ -4,6 +4,7 @@ const { v4: uuidv4 } = require("uuid");
 const ObjectId = require("mongodb").ObjectId;
 require('dotenv').config();
 const cors = require("cors");
+const bcrypt = require('bcryptjs');
 const axios = require("axios");
 const http = require("http");
 const { Server } = require("socket.io");
@@ -452,7 +453,7 @@ app.post("/markSeen", async (req, res) => {
 
  // add database user collection 
  app.post('/users', async (req, res) => {
-  const {  displayName, phoneNumber } = req.body;
+  const {  displayName,password, phoneNumber } = req.body;
 
   try {
     // Check if the phone number already exists
@@ -463,7 +464,7 @@ app.post("/markSeen", async (req, res) => {
     }
 
     // Insert new user
-    const result = await userCollection.insertOne({  displayName, phoneNumber });
+    const result = await userCollection.insertOne({  displayName,password, phoneNumber });
     res.json({ success: true, message: "User registered successfully!", result });
   } catch (error) {
     console.error("Error inserting user:", error);
@@ -824,6 +825,42 @@ app.get('/usersblock/:phoneNumber', async (req, res) => {
     res.status(404).json({ message: "User not found" });
   }
 });
+
+// Reset Password Route
+
+app.put("/reset-password", async (req, res) => {
+  try {
+    const { phoneNumber, newPassword } = req.body;
+
+    if (!phoneNumber || !newPassword) {
+      return res.status(400).json({ success: false, message: "All fields are required!" });
+    }
+
+    
+
+    // Find user by phone number
+    const user = await userCollection.findOne({ phoneNumber });
+    if (!user) {
+      return res.status(404).json({ success: false, message: "User not found!" });
+    }
+
+    // Update password in MongoDB (plain text)
+    const result = await userCollection.updateOne(
+      { phoneNumber },
+      { $set: { password: newPassword } }
+    );
+
+    if (result.modifiedCount === 0) {
+      return res.status(400).json({ success: false, message: "Password update failed!" });
+    }
+
+    res.json({ success: true, message: "Password updated successfully!" });
+  } catch (error) {
+    console.error("Reset Password Error:", error);
+    res.status(500).json({ success: false, message: "Server error. Try again!" });
+  } 
+});
+
 
 
  // database admin create the new admin

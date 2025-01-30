@@ -4,6 +4,7 @@ const { v4: uuidv4 } = require("uuid");
 const ObjectId = require("mongodb").ObjectId;
 require('dotenv').config();
 const cors = require("cors");
+const axios = require("axios");
 const http = require("http");
 const { Server } = require("socket.io");
 
@@ -43,6 +44,7 @@ async function run() {
       const searchCollection = database.collection('searchlist');
       const lovelistCollection = database.collection('productlike');
       const bannerpostCollection = database.collection('bannerposts');
+      const smsCollection = database.collection('sms');
 
       
 
@@ -50,15 +52,16 @@ async function run() {
  // Fetch chat history
 
   app.get("/api/chats", async (req, res) => {
-  const { productId, userEmail } = req.query;
+  const { productId, userPhone } = req.query;
+  // console.log(req.query)
 
   try {
     const messages = await chatsCollection
       .find({
         productId,
         $or: [
-          { senderEmail: userEmail },
-          { receiverEmail: userEmail },
+          { senderEmail: userPhone },
+          { receiverEmail: userPhone },
         ],
       })
       .sort({ timestamp: 1 })
@@ -76,6 +79,7 @@ async function run() {
 // Save a message
 app.post("/api/chats", async (req, res) => {
   const { productId, senderEmail, receiverEmail, message,productimage,productmodel,productprice,productbrand,productcondition,productdistrict,productupazila } = req.body;
+  // console.log(req.body)
 
   if (!productId || !senderEmail || !receiverEmail || !message) {
     return res.status(400).json({ error: "Incomplete message data." });
@@ -193,6 +197,13 @@ app.get("/editbaners/:id", async (req, res) => {
   res.json(user);
 });
 
+app.get("/editcategoryproducts/:id", async (req, res) => {
+  const id = req.params.id;
+  const query = { _id: new ObjectId(id) };
+  const user = await cashcategoryCollection.findOne(query);
+  res.json(user);
+});
+
 app.put('/bannerdataupdate/:id', async (req, res) => {
   try {
     const { id } = req.params;
@@ -221,9 +232,61 @@ app.put('/bannerdataupdate/:id', async (req, res) => {
   }
 });
 
+app.put("/catehorypartsupdate/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const {
+      condition,
+      productStatus,
+      brand,
+      title,
+      model,
+      edition,
+      description,
+      price,
+      images,
+    } = req.body;
+
+    const objectId = new ObjectId(id);
+
+    const result = await cashcategoryCollection.updateOne(
+      { _id: objectId },
+      {
+        $set: {
+          condition,
+          productStatus,
+          brand,
+          title,
+          model,
+          edition,
+          description,
+          price,
+          images,
+        },
+      }
+    );
+
+    if (result.modifiedCount > 0) {
+      res.json({ message: "Product updated successfully", modifiedCount: result.modifiedCount });
+    } else {
+      res.status(404).json({ message: "Product not found or no changes made" });
+    }
+  } catch (error) {
+    console.error("Error updating product:", error);
+    res.status(500).json({ message: "Server Error" });
+  }
+});
+
 
 app.delete("/bannerpartdelete/:id", async (req, res) => {
   const result = await bannerpostCollection.deleteOne({
+    _id: new ObjectId(req.params.id),
+  });
+  res.json(result);
+});
+
+app.delete("/categoriespartsdelete/:id", async (req, res) => {
+  const result = await cashcategoryCollection.deleteOne({
     _id: new ObjectId(req.params.id),
   });
   res.json(result);
@@ -242,7 +305,7 @@ app.delete("/pendingdatsdelete/:id", async (req, res) => {
 // Get Chat List
 // Get Chat List
 app.get("/chatlist", async (req, res) => {
-  const { userEmail } = req.query;
+  const { userPhone } = req.query;
 
   try {
     // Get all users with which the logged-in user has communicated
@@ -250,8 +313,8 @@ app.get("/chatlist", async (req, res) => {
       {
         $match: {
           $or: [
-            { senderEmail: userEmail },
-            { receiverEmail: userEmail }
+            { senderEmail: userPhone },
+            { receiverEmail: userPhone }
           ]
         }
       },
@@ -259,7 +322,7 @@ app.get("/chatlist", async (req, res) => {
         $group: {
           _id: {
             $cond: [
-              { $ne: ["$senderEmail", userEmail] },
+              { $ne: ["$senderEmail", userPhone] },
               "$senderEmail",
               "$receiverEmail"
             ]
@@ -279,19 +342,24 @@ app.get("/chatlist", async (req, res) => {
 
 // Get One-to-One Conversation
 app.get("/conversation", async (req, res) => {
-  const { userEmail, otherUserEmail } = req.query;
+  const { userPhone, otheruserPhone } = req.query;
 
   try {
-
     const messages = await chatsCollection
       .find({
         $or: [
-          { senderEmail: userEmail, receiverEmail: otherUserEmail },
-          { senderEmail: otherUserEmail, receiverEmail: userEmail },
+          { senderEmail: userPhone, receiverEmail: otheruserPhone },
+          { senderEmail: otheruserPhone, receiverEmail: userPhone },
         ],
       })
       .sort({ timestamp: 1 })
       .toArray();
+
+    // Mark messages as seen when receiver opens the chat
+    await chatsCollection.updateMany(
+      { senderEmail: otheruserPhone, receiverEmail: userPhone, seen: false },
+      { $set: { seen: true } }
+    );
 
     res.json(messages);
   } catch (err) {
@@ -299,26 +367,67 @@ app.get("/conversation", async (req, res) => {
   }
 });
 
+
+
 // Send a Message
 app.post("/send", async (req, res) => {
-  const { productId, senderEmail, receiverEmail, message } = req.body;
+  const { senderEmail, receiverEmail, message, productId } = req.body;
+
+  if (!senderEmail || !receiverEmail || !message) {
+    return res.status(400).json({ error: "Missing required fields" });
+  }
 
   try {
-
     const newMessage = {
-      productId,
       senderEmail,
       receiverEmail,
       message,
+      productId: productId || null,
+      seen: false,
       timestamp: new Date(),
     };
 
-    await chatsCollection.insertOne(newMessage);
-    res.status(201).json(newMessage);
+    const result = await chatsCollection.insertOne(newMessage);
+    res.json({ ...newMessage, _id: result.insertedId });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
+
+
+
+
+app.post("/markSeen", async (req, res) => {
+  console.log("Mark Seen endpoint hit");
+  const { senderEmail, receiverEmail } = req.body;
+
+  if (!senderEmail || !receiverEmail) {
+    return res.status(400).json({ error: "Missing senderEmail or receiverEmail" });
+  }
+
+  try {
+    const result = await chatsCollection.updateMany(
+      { senderEmail, receiverEmail, seen: false },
+      { $set: { seen: true } }
+    );
+
+    res.json({ success: true, updatedCount: result.modifiedCount });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -342,14 +451,28 @@ app.post("/send", async (req, res) => {
       });
 
  // add database user collection 
- app.post('/users', async(req,res)=>{
-  const user=req.body;
-  console.log(user)
-  const result=await userCollection.insertOne(user);
-  // console.log(body)
-  res.json(result);
- 
-})
+ app.post('/users', async (req, res) => {
+  const {  displayName, phoneNumber } = req.body;
+
+  try {
+    // Check if the phone number already exists
+    const existingUser = await userCollection.findOne({ phoneNumber });
+
+    if (existingUser) {
+      return res.status(400).json({ success: false, message: "Phone number already registered. Please log in." });
+    }
+
+    // Insert new user
+    const result = await userCollection.insertOne({  displayName, phoneNumber });
+    res.json({ success: true, message: "User registered successfully!", result });
+  } catch (error) {
+    console.error("Error inserting user:", error);
+    res.status(500).json({ success: false, message: "Server error" });
+  }
+});
+
+
+
  app.post('/postdatarecruitment', async(req,res)=>{
   const user=req.body;
   console.log(req.body)
@@ -408,12 +531,12 @@ app.patch('/approvedproducts/:id', async (req, res) => {
 
   // adds show account user portal data show 
   app.get("/api/addsproducts", async (req, res) => {
-    const { email } = req.query;
-    if (!email) {
+    const { phone } = req.query;
+    if (!phone) {
       return res.status(400).json({ message: "User email is required" });
     }
     try {
-      const products = await cashcategoryCollection.find({ email }).toArray();
+      const products = await cashcategoryCollection.find({ phone }).toArray();
       res.status(200).json(products);
     } catch (error) {
       res.status(500).json({ message: "Error fetching products", error });
@@ -463,55 +586,127 @@ app.patch('/approvedproducts/:id', async (req, res) => {
 
 
 
-  // get the data admin update packge name database 
-  app.get("/api/products", async (req, res) => {
-    try {
-      const products = await cashcategoryCollection.find().toArray();
-      res.status(200).json(products);
-    } catch (error) {
-      console.error("Error fetching products:", error);
-      res.status(500).json({ error: "Internal server error" });
-    }
+  // sms 
+
+  const otpStore = {};
+  const BULKSMSBD_API_KEY = process.env.DB_SMS;
+const SENDER_ID = process.env.DB_SMSID;
+
+// console.log("API Key:", BULKSMSBD_API_KEY);
+// console.log("Sender ID:", SENDER_ID);
+  
+  
+  // Axios instance for BulkSMSBD API
+  const axiosInstance = axios.create({
+    baseURL: "http://bulksmsbd.net/api",
   });
-
-
   
-  // 2. Update packageName
-  app.put("/api/products/update-package/:id", async (req, res) => {
-    const { id } = req.params;
-    const { packageName } = req.body;
+  // 1. Send OTP
+  app.post("/send-otp", async (req, res) => {
+    const { phoneNumber } = req.body;
   
-    if (!packageName) {
-      return res.status(400).json({ error: "packageName is required" });
+    // Validate phone number (Bangladeshi 11-digit number in international format)
+    if (!/^\d{11}$/.test(phoneNumber)) {
+      return res.status(400).json({ success: false, message: "Invalid phone number." });
     }
   
-    try {
-      const result = cashcategoryCollection
-        .updateOne(
-          { _id: new ObjectId(id) },
-          { $set: { "boostingDetails.packageName": packageName } }
-        );
+    const otp = Math.floor(100000 + Math.random() * 900000).toString(); // Generate 6-digit OTP
+    otpStore[phoneNumber] = otp;
   
-      if (result.matchedCount === 0) {
-        return res.status(404).json({ error: "Product not found" });
+    try {
+      const formattedPhoneNumber = `88${phoneNumber}`;  // Ensure phone number is in international format
+  
+      // URL encode the message to ensure proper transmission
+      const message = encodeURIComponent(`Your OTP is: ${otp}`);
+  
+      const response = await axiosInstance.get(
+        `/smsapi?api_key=${BULKSMSBD_API_KEY}&number=${formattedPhoneNumber}&message=${message}&type=text&senderid=${SENDER_ID}`
+      );
+  
+      // Log the full response from BulkSMSBD for debugging
+      console.log("BulkSMSBD Response:", response.data);
+  
+      // Adjusted success check
+      if (response.data.response_code === 1000 || response.data.response_code === 202) {
+        res.json({ success: true });
+      } else {
+        res.status(500).json({ success: false, message: response.data.error_message || "Failed to send SMS." });
       }
-  
-      res.status(200).json({ message: "Package name updated successfully" });
     } catch (error) {
-      console.error("Error updating package name:", error);
-      res.status(500).json({ error: "Internal server error" });
+      console.error("Error in send-otp:", error.message);
+      res.status(500).json({ success: false, message: "Error sending OTP.", error: error.message });
     }
   });
 
-
   
+// 2. Verify OTP
+app.post("/verify-otp", (req, res) => {
+  const { phoneNumber, otp } = req.body;
+
+  if (otpStore[phoneNumber] === otp) {
+    delete otpStore[phoneNumber]; // Clear OTP after successful verification
+    res.json({ success: true });
+  } else {
+    res.status(400).json({ success: false, message: "Invalid OTP." });
+  }
+});
+
+// 3. Get all products
+app.get("/api/products", async (req, res) => {
+  try {
+    const products = await smsCollection.find().toArray();
+    res.status(200).json(products);
+  } catch (error) {
+    console.error("Error fetching products:", error.message);
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+app.get("/api/newproductss", async (req, res) => {
+  try {
+    const products = await cashcategoryCollection.find().toArray();
+    res.status(200).json(products);
+  } catch (error) {
+    console.error("Error fetching products:", error.message);
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+// 4. Update package name
+app.put("/api/products/update-package/:id", async (req, res) => {
+  const { id } = req.params;
+  const { packageName } = req.body;
+
+  if (!packageName) {
+    return res.status(400).json({ error: "Package name is required" });
+  }
+
+  try {
+    const result = await cashcategoryCollection.updateOne(
+      { _id: new ObjectId(id) },
+      { $set: { "boostingDetails.packageName": packageName } }
+    );
+
+    if (result.matchedCount === 0) {
+      return res.status(404).json({ error: "Product not found" });
+    }
+
+    res.status(200).json({ message: "Package name updated successfully" });
+  } catch (error) {
+    console.error("Error updating package name:", error.message);
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+
 
 
   // database searching check admin 
-  app.get('/userLogin/:email', async(req,res)=>{
-    const email=req.params.email;
-    const query={email:email}
+  app.get('/userLogin/:phone', async(req,res)=>{
+    const phone=req.params.phone;
+    console.log(phone)
+    const query={phoneNumber:phone}
+    console.log(query)
     const user=await userCollection.findOne(query)
+    console.log(user)
     let isAdmin=false;
     if(user?.role==='admin'){
       isAdmin=true;
@@ -522,13 +717,13 @@ app.patch('/approvedproducts/:id', async (req, res) => {
 
 app.get("/getuserdats", async (req, res) => {
   try {
-    const { email } = req.query; // Use query parameters to get the email
+    const { phone } = req.query; // Use query parameters to get the email
 
-    if (!email) {
+    if (!phone) {
       return res.status(400).json({ message: "Email is required." });
     }
 
-    const userData = await userCollection.findOne({ email }); // Find one user by email
+    const userData = await userCollection.findOne({phoneNumber: phone }); // Find one user by email
 
     if (!userData) {
       return res.status(404).json({ message: "User not found." });
@@ -545,16 +740,16 @@ app.get("/getuserdats", async (req, res) => {
 
 app.put("/api/update-user", async (req, res) => {
   try {
-    const { email, name, phone, district, upazila } = req.body;
+    const {  name, phone, district, upazila } = req.body;
 
     // Validate required fields
-    if (!email || !name || !phone || !district || !upazila) {
+    if ( !name || !phone || !district || !upazila) {
       return res.status(400).json({ message: "All fields are required." });
     }
 
     // Update user data in the database
     const updatedUser = await userCollection.findOneAndUpdate(
-      { email }, // Find user by email
+      {phoneNumber: phone }, // Find user by email
       { $set: { displayName: name, phone, district, upazila } }, // Update fields
       { returnDocument: "after", returnOriginal: false } // Return the updated document
     );
@@ -618,15 +813,18 @@ app.patch("/unblockuser/:email", async (req, res) => {
 });
 
 // chck the database block check 
-app.get('/usersblock/:email', async (req, res) => {
-  const { email } = req.params;
-  const user = await userCollection.findOne({ email });
+
+app.get('/usersblock/:phoneNumber', async (req, res) => {
+  const { phoneNumber } = req.params;
+  const user = await userCollection.findOne({ phoneNumber }); // Fix query to check phoneNumber
+
   if (user) {
     res.json(user);
   } else {
-    res.status(404).json({ message: 'User not found' });
+    res.status(404).json({ message: "User not found" });
   }
 });
+
 
  // database admin create the new admin
  app.put('/userLogin/admin', async(req,res)=>{
@@ -785,16 +983,16 @@ app.get('/users/:email', async (req, res) => {
 
   // API to save a search term
 app.post("/api/save-search", async (req, res) => {
-  const { searchTerm,email } = req.body;
+  const { searchTerm,phone } = req.body;
   console.log(req.body)
 
-  if (!searchTerm || !email || searchTerm.trim() === "") {
+  if (!searchTerm || !phone || searchTerm.trim() === "") {
     return res.status(400).json({ error: "Search term is required." });
   }
 
   try {
     
-    const newSearch = { searchTerm,email, createdAt: new Date() };
+    const newSearch = { searchTerm,phone, createdAt: new Date() };
     await searchCollection.insertOne(newSearch);
     res.status(201).json({ message: "Search term saved successfully!" });
   } catch (error) {
@@ -806,9 +1004,9 @@ app.post("/api/save-search", async (req, res) => {
 // 1. Fetch all search terms
 app.get("/api/search-terms", async (req, res) => {
   try {
-    const { email } = req.query; 
+    const { phone } = req.query; 
 
-      const searchTerms = await searchCollection.find({ email }).toArray();
+      const searchTerms = await searchCollection.find({ phone }).toArray();
 
     res.status(200).json(searchTerms);
   } catch (error) {
@@ -859,12 +1057,12 @@ app.post("/api/saved-products", async (req, res) => {
 });
 
 app.get("/api/lovelistproduct", async (req, res) => {
-  const { email } = req.query;
-  console.log(req.query)
+  const { phone } = req.query;
+  // console.log(req.query)
 
   
   try {
-    const products = await lovelistCollection.find({userEmail:email }).toArray();
+    const products = await lovelistCollection.find({userPhone:phone }).toArray();
     console.log(products)
     res.status(200).json(products);
   } catch (error) {

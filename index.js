@@ -79,7 +79,7 @@ async function run() {
 
 // Save a message
 app.post("/api/chats", async (req, res) => {
-  const { productId, senderEmail, receiverEmail, message,productimage,productmodel,productprice,productbrand,productcondition,productdistrict,productupazila } = req.body;
+  const { productId, senderEmail, receiverEmail, message,productimage,productmodel,productprice,productbrand,productcondition,productdistrict,productupazila,sellerName,username } = req.body;
   // console.log(req.body)
 
   if (!productId || !senderEmail || !receiverEmail || !message) {
@@ -99,7 +99,9 @@ app.post("/api/chats", async (req, res) => {
       productbrand,
       productcondition,
       productdistrict,
-      productupazila
+      productupazila,
+      username,
+      sellerName
     };
 
     // Save the chat message to the database
@@ -305,40 +307,82 @@ app.delete("/pendingdatsdelete/:id", async (req, res) => {
 
 // Get Chat List
 // Get Chat List
+// Server-side: GET /chatlist to get users with unread messages.
+  // Server-side: GET /chatlist to get users with unread messages.
 app.get("/chatlist", async (req, res) => {
   const { userPhone } = req.query;
 
+  if (!userPhone) return res.status(400).json({ error: "User phone required" });
+
   try {
-    // Get all users with which the logged-in user has communicated
-    const users = await chatsCollection.aggregate([
+    // Find chats where the current user is the receiver and the message is not seen
+    const chats = await chatsCollection.aggregate([
       {
         $match: {
           $or: [
-            { senderEmail: userPhone },
-            { receiverEmail: userPhone }
-          ]
-        }
+            { senderEmail: userPhone }, // User sent the message
+            { receiverEmail: userPhone }, // User received the message
+          ],
+        },
       },
       {
         $group: {
           _id: {
-            $cond: [
-              { $ne: ["$senderEmail", userPhone] },
-              "$senderEmail",
-              "$receiverEmail"
-            ]
-          }
-        }
-      }
-    ]).toArray(); // Using .toArray() to convert the cursor into an array
+            chatPartner: {
+              $cond: [
+                { $eq: ["$senderEmail", userPhone] },
+                "$receiverEmail",
+                "$senderEmail",
+              ],
+            },
+          },
+          unreadMessages: {
+            $sum: {
+              $cond: [
+                { $and: [{ $eq: ["$receiverEmail", userPhone] }, { $eq: ["$seen", false] }] },
+                1,
+                0,
+              ],
+            },
+          },
+        },
+      },
+      {
+        $project: {
+          phoneNumber: "$_id.chatPartner",
+          unreadMessages: 1,
+        },
+      },
+    ]).toArray();
 
-    // Filter out the logged-in user themselves
-    const filteredUsers = users.map(user => user._id);
-    res.json(filteredUsers);
+    // Fetch usernames for chat partners
+    const userPhones = chats.map((chat) => chat.phoneNumber);
+    const userDetails = await userCollection
+      .find({ phoneNumber: { $in: userPhones } })
+      .toArray();
+
+    // Map phone numbers to usernames
+    const userMap = {};
+    userDetails.forEach((user) => {
+      userMap[user.phoneNumber] = user.displayName || user.phoneNumber;
+    });
+
+    // Return chat list with unread message count
+    const chatList = chats.map((chat) => ({
+      phoneNumber: chat.phoneNumber,
+      username: userMap[chat.phoneNumber] || chat.phoneNumber,
+      hasUnread: chat.unreadMessages > 0, // Unread messages flag
+    }));
+
+    res.json(chatList);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
+
+
+
+
 
 
 // Get One-to-One Conversation
@@ -367,6 +411,11 @@ app.get("/conversation", async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
+
+// unread message 
+
+
+
 
 
 
@@ -738,6 +787,31 @@ app.get("/getuserdats", async (req, res) => {
 });
 
 
+app.get("/getuserphone", async (req, res) => {
+  try {
+    const { phone } = req.query;
+
+    if (!phone) {
+      return res.status(400).json({ message: "Phone number is required." });
+    }
+
+    const userData = await userCollection.findOne({ phoneNumber: phone });
+
+    if (!userData) {
+      return res.status(404).json({ message: "User not found." });
+    }
+
+    res.json(userData); // Send user data directly (not an array)
+  } catch (error) {
+    console.error("Error fetching user data:", error);
+    res.status(500).json({ message: "Internal server error." });
+  }
+});
+
+
+
+
+
 
 app.put("/api/update-user", async (req, res) => {
   try {
@@ -864,14 +938,34 @@ app.put("/reset-password", async (req, res) => {
 
 
  // database admin create the new admin
- app.put('/userLogin/admin', async(req,res)=>{
-  const user=req.body;
-  console.log('put',user)
-  const filter={email:user.email}
-  const updateDoc={$set:{role:'admin'}}
-  const result=await userCollection.updateOne(filter,updateDoc)
-  res.json(result)
+ app.put("/userLogin/admin", async (req, res) => {
+  const user = req.body;
+  console.log("put", user);
+  const filter = { phoneNumber: user.phoneNumber }; // Match by phone number
+  const updateDoc = { $set: { role: "admin" } };
+  const result = await userCollection.updateOne(filter, updateDoc);
+  res.json(result);
 });
+
+// Delete Admin
+app.delete("/userLogin/admin/:phoneNumber", async (req, res) => {
+  const { phoneNumber } = req.params;
+
+  try {
+    const result = await userCollection.deleteOne({ phoneNumber: phoneNumber });
+
+    if (result.deletedCount > 0) {
+      res.json({ success: true, message: "Admin deleted successfully", deletedCount: result.deletedCount });
+    } else {
+      res.status(404).json({ success: false, message: "Admin not found" });
+    }
+  } catch (error) {
+    console.error("Error deleting admin:", error);
+    res.status(500).json({ success: false, error: "Failed to delete admin" });
+  }
+});
+
+
 
 // post pproject home 
 app.post('/postproject', async (req, res) => {

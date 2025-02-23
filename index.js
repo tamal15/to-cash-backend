@@ -8,7 +8,7 @@ const bcrypt = require('bcryptjs');
 const axios = require("axios");
 const http = require("http");
 const { Server } = require("socket.io");
-
+const crypto = require('crypto');
 const app=express();
 const port = process.env.PORT || 5000;
 // app.use(express.json({ limit: '50mb' }));
@@ -51,6 +51,29 @@ async function run() {
 
     // Fetch chat historyapi/form-submit
  // Fetch chat history
+
+
+ const ENCRYPTION_KEY = '12345678901234567890123456789012'; 
+const IV = crypto.randomBytes(16);
+
+function encryptData(data) {
+    const cipher = crypto.createCipheriv('aes-256-cbc', Buffer.from(ENCRYPTION_KEY, 'utf8'), IV);
+    let encrypted = cipher.update(JSON.stringify(data), 'utf8', 'hex');
+    encrypted += cipher.final('hex');
+    return IV.toString('hex') + ':' + encrypted;
+}
+
+// Decryption function
+function decryptData(encryptedData) {
+  const [ivHex, encryptedHex] = encryptedData.split(':');
+  const iv = Buffer.from(ivHex, 'hex');
+  const encryptedText = Buffer.from(encryptedHex, 'hex');
+  const decipher = crypto.createDecipheriv('aes-256-cbc', Buffer.from(ENCRYPTION_KEY, 'utf8'), iv);
+  let decrypted = decipher.update(encryptedText);
+  decrypted = Buffer.concat([decrypted, decipher.final()]);
+  return JSON.parse(decrypted.toString());
+}
+
 
   app.get("/api/chats", async (req, res) => {
   const { productId, userPhone } = req.query;
@@ -158,11 +181,13 @@ io.on("connection", (socket) => {
 
 app.post('/postaddbanner', async (req, res) => {
   try {
-    const { title,  image } = req.body;
+    const { title,link,time,  image } = req.body;
 
     // Insert the data into the MongoDB collection
     const result = await bannerpostCollection.insertOne({
       title,
+      link,
+      time,
       image,
       createdAt: new Date(),
     });
@@ -210,7 +235,7 @@ app.get("/editcategoryproducts/:id", async (req, res) => {
 app.put('/bannerdataupdate/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    const { title,  image } = req.body;
+    const { title,link, time, image } = req.body;
     
 
     const objectId = new ObjectId(id);
@@ -219,6 +244,8 @@ app.put('/bannerdataupdate/:id', async (req, res) => {
       {
         $set: {
           title,
+          link,
+          time,
           image,
         },
       }
@@ -381,6 +408,50 @@ app.get("/chatlist", async (req, res) => {
 });
 
 
+app.post("/deleteChat", async (req, res) => {
+  const { senderEmail, receiverEmail } = req.body;
+
+  if (!senderEmail || !receiverEmail) {
+    return res.status(400).json({ error: "Both users are required" });
+  }
+
+  try {
+    await chatsCollection.deleteMany({
+      $or: [
+        { senderEmail, receiverEmail },
+        { senderEmail: receiverEmail, receiverEmail: senderEmail },
+      ],
+    });
+
+    res.json({ success: true, message: "Chat deleted successfully" });
+  } catch (err) {
+    res.status(500).json({ error: "Failed to delete chat" });
+  }
+});
+
+
+ // ✅ Get unread messages count for a user
+app.get("/unreadMessages", async (req, res) => {
+  try {
+    const { receiverEmail } = req.query;
+    if (!receiverEmail) {
+      return res.status(400).json({ error: "Receiver email (phone) is required" });
+    }
+
+    const unreadCount = await chatsCollection.countDocuments({
+      receiverEmail,
+      seen: false, // Only count unread messages
+    });
+
+    res.json({ unreadCount });
+  } catch (error) {
+    console.error("Error fetching unread messages:", error);
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+
+
 
 
 
@@ -497,15 +568,17 @@ app.post("/markSeen", async (req, res) => {
 
       app.get("/getcategoryparts", async (req, res) => {
         const result = await cashcategoryCollection.find({}).toArray();
-        res.json(result);
-      });
+        const encryptedData = encryptData(result);
+        res.json({ data: encryptedData });
+    });
 
  // add database user collection 
  app.post('/users', async (req, res) => {
-  const {  displayName,password, phoneNumber } = req.body;
 
   try {
     // Check if the phone number already exists
+    const decryptedData = decryptData(req.body.payload);
+    const { displayName, password, phoneNumber } = decryptedData;
     const existingUser = await userCollection.findOne({ phoneNumber });
 
     if (existingUser) {
@@ -764,6 +837,18 @@ app.put("/api/products/update-package/:id", async (req, res) => {
     res.json({admin:isAdmin})
 });
 
+// database check subadmin 
+app.get('/userLoginsubadmin/:phone', async(req,res)=>{
+  const phone=req.params.phone;
+  const query={phoneNumber:phone}
+  const user=await userCollection.findOne(query)
+  let issubAdmin=false;
+  if(user?.subrole==='subadmin'){
+    issubAdmin=true;
+  }
+  res.json({subadmin:issubAdmin})
+});
+
 
 app.get("/getuserdats", async (req, res) => {
   try {
@@ -849,43 +934,45 @@ app.get("/getadminlist", async (req, res) => {
 });
 
 // block user 
-app.patch("/blockuser/:email", async (req, res) => {
-  const userEmail = req.params.email;
+app.patch("/blockuser/:phoneNumber", async (req, res) => {
+  const userPhone = req.params.phoneNumber;
   try {
-    const result = await userCollection.updateOne(
-      { email: userEmail },
-      { $set: { status: "blocked" } }
-    );
+      const result = await userCollection.updateOne(
+          { phoneNumber: userPhone },
+          { $set: { status: "blocked" } }
+      );
 
-    if (result.modifiedCount > 0) {
-      res.json({ success: true, message: "User blocked successfully." });
-    } else {
-      res.status(404).json({ success: false, message: "User not found." });
-    }
+      if (result.modifiedCount > 0) {
+          res.json({ success: true, message: "User blocked successfully." });
+      } else {
+          res.status(404).json({ success: false, message: "User not found." });
+      }
   } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
+      res.status(500).json({ success: false, message: error.message });
   }
 });
+
 
 // unblock user 
 // Unblock user
-app.patch("/unblockuser/:email", async (req, res) => {
-  const userEmail = req.params.email;
+app.patch("/unblockuser/:phoneNumber", async (req, res) => {
+  const userPhone = req.params.phoneNumber;
   try {
-    const result = await userCollection.updateOne(
-      { email: userEmail },
-      { $set: { status: "active" } }
-    );
+      const result = await userCollection.updateOne(
+          { phoneNumber: userPhone },
+          { $set: { status: "active" } }
+      );
 
-    if (result.modifiedCount > 0) {
-      res.json({ success: true, message: "User unblocked successfully." });
-    } else {
-      res.status(404).json({ success: false, message: "User not found." });
-    }
+      if (result.modifiedCount > 0) {
+          res.json({ success: true, message: "User unblocked successfully." });
+      } else {
+          res.status(404).json({ success: false, message: "User not found." });
+      }
   } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
+      res.status(500).json({ success: false, message: error.message });
   }
 });
+
 
 // chck the database block check 
 
@@ -947,8 +1034,36 @@ app.put("/reset-password", async (req, res) => {
   res.json(result);
 });
 
+// database admin create the new admin
+app.put("/userLogin/subadmin", async (req, res) => {
+  const user = req.body;
+  console.log("put", user);
+  const filter = { phoneNumber: user.phoneNumber }; // Match by phone number
+  const updateDoc = { $set: { subrole: "subadmin" } };
+  const result = await userCollection.updateOne(filter, updateDoc);
+  res.json(result);
+});
+
 // Delete Admin
 app.delete("/userLogin/admin/:phoneNumber", async (req, res) => {
+  const { phoneNumber } = req.params;
+
+  try {
+    const result = await userCollection.deleteOne({ phoneNumber: phoneNumber });
+
+    if (result.deletedCount > 0) {
+      res.json({ success: true, message: "Admin deleted successfully", deletedCount: result.deletedCount });
+    } else {
+      res.status(404).json({ success: false, message: "Admin not found" });
+    }
+  } catch (error) {
+    console.error("Error deleting admin:", error);
+    res.status(500).json({ success: false, error: "Failed to delete admin" });
+  }
+});
+
+// deleet subadmin 
+app.delete("/userLogin/subadmin/:phoneNumber", async (req, res) => {
   const { phoneNumber } = req.params;
 
   try {
